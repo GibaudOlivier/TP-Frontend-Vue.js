@@ -1,42 +1,38 @@
 <template>
   <main>
-    <div>
-      <!-- Un formulaire pour saisir les valeurs de la catégorie à ajouter -->
-      <form @submit.prevent="ajouteCategorie">
-        <div>
-          <input id="libelle" v-model="data.formulaireCategorie.libelle" placeholder="Libelle" />
-        </div>
-        <div>
-          <input id="description" v-model="data.formulaireCategorie.description" placeholder="Description" />
-        </div>
-        <button type="submit">Ajouter</button>
-      </form>
-    </div>
-    <div>
       <table>
-        <caption>Liste des catégories</caption>
+        <caption>Liste des produits - page {{ data.page.number + 1 }} / {{ data.page.totalPages }}</caption>
         <tr>
-          <th>Code</th>
-          <th>Libelle</th>
-          <th>Description</th>
-          <th>Action</th>
+          <th>Nom</th>
+          <th>Prix</th>
+          <th>Stock</th>
+          <th>Commandés</th>
         </tr>
-        <!-- Si le tableau des catégories est vide -->
-        <tr v-if="data.listeCategories.length === 0">
-          <td colspan="4">Veuillez patienter, chargement des catégories...</td>
+        <!-- Si le tableau des produits est vide -->
+        <tr v-if="data.listeProduits.length === 0">
+          <td colspan="4">Veuillez patienter, chargement des produits...</td>
         </tr>
-        <!-- Si le tableau des catégories n'est pas vide -->
-        <tr v-for="categorie in data.listeCategories" :key="categorie.code">
-          <td>{{ categorie.code }}</td>
-          <td>{{ categorie.libelle }}</td>
-          <td>{{ categorie.description }}</td>
-          <td>
-            <button @click="deleteEntity(categorie._links.self.href)">
-              Supprimer
-            </button>
-          </td>
+        <!-- Si le tableau des produits n'est pas vide -->
+        <tr v-for="produit in data.listeProduits" :key="produit.nom">
+          <td>{{ produit.nom }}</td>
+          <td>{{ produit.prixUnitaire }}</td>
+          <td>{{ produit.unitesEnStock }}</td>
+          <td>{{ produit.unitesCommandees }}</td>
         </tr>
       </table>
+    <div class="option">
+      <button @click="chargeProduits(0)">
+        ⇇
+      </button>
+      <button @click="data.page.number + 1 > 1 ? chargeProduits(data.page.number - 1) : ''">
+        ←
+      </button>
+      <button @click="data.page.number + 1 < data.page.totalPages ? chargeProduits(data.page.number + 1) : ''">
+        →
+      </button>
+      <button @click="chargeProduits(data.page.totalPages - 1)">
+        ⇉
+      </button>
     </div>
   </main>
 </template>
@@ -45,17 +41,13 @@
 import { reactive, onMounted } from "vue";
 import { doAjaxRequest, APIError } from "../api";
 
-// Pour réinitialiser le formuaire
-const categorieVide = {
-  libelle: "",
-  description: ""
-};
 
 let data = reactive({
   // Les données saisies dans le formulaire
-  formulaireCategorie: { ...categorieVide },
-  // La liste des catégories affichée sous forme de table
-  listeCategories: []
+  // La liste des produits affichée sous forme de table
+  listeProduits: [],
+  // Informations de la page
+  page: {}
 });
 
 function showError(error) {
@@ -64,48 +56,20 @@ function showError(error) {
   alert(error.message);
 }
 
-function chargeCategories() {
-  // Appel à l'API pour avoir la liste des catégories
+function chargeProduits(nPage) {
+  // Appel à l'API pour avoir la liste des produits
   // Trié par code, descendant
   // Verbe HTTP GET par défaut
-  doAjaxRequest("/api/categories?sort=code,desc")
+  doAjaxRequest(`/api/produits?page=${nPage}&size=5&sort=nom,desc`)
       .then((json) => {
-        data.listeCategories = json._embedded.categories;
+        data.listeProduits = json._embedded.produits;
+        data.page = json.page;
       })
-      .catch(showError);
-}
-
-function ajouteCategorie() {
-  // Ajouter une catégorie avec les données du formulaire
-  const options = {
-    method: "POST", // Verbe HTTP POST pour ajouter un enregistrement
-    body: JSON.stringify(data.formulaireCategorie),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
-  doAjaxRequest("/api/categories", options)
-      .then(() => {
-        // Réinitialiser le formulaire
-        data.formulaireCategorie = { ...categorieVide };
-        // Recharger la liste des catégories
-        chargeCategories();
-      })
-      .catch(showError);
-}
-/**
- * Supprime une entité
- * @param entityRef l'URI de l'entité à supprimer
- */
-function deleteEntity(entityRef) {
-  doAjaxRequest(entityRef, { method: "DELETE" })
-      .then(chargeCategories)
       .catch(showError);
 }
 
 // A l'affichage du composant, on affiche la liste
-onMounted(chargeCategories);
-
+onMounted(() => {  chargeProduits(0);});
 </script>
 
 
@@ -115,13 +79,14 @@ th {
   border: 1px solid #ddd;
   padding: 8px;
 }
-
-
 th {
   padding-top: 12px;
   padding-bottom: 12px;
   text-align: left;
   background-color: #232623;
   color: rgb(255, 255, 255);
+}
+.option button:hover{
+  background: #00bd7e;
 }
 </style>
